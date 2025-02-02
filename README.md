@@ -8,8 +8,11 @@ The original MATLAB source code can be found at the following repository: https:
 
 ## Usage
 
-Requirements are `jax`, `jaxlib`, `numpy`, `matplotlib`, `scipy` and `sklearn`. Run the main script using `python cvrnn_image_segmentation.py`. So far only the 2-shapes dataset example is included.
+Run the main script using 
+```
+>> python cvrnn_image_segmentation.py`
+```
 
-## Testing
+So far only the 2-shapes dataset example is run.
 
-To-Do
+Requirements are `jax`, `jaxlib`, `numpy`, `matplotlib`, `scipy` and `sklearn`. 
