@@ -10,7 +10,7 @@ The original MATLAB source code can be found at the following repository: https:
 
 Run the main script using 
 ```
->> python cvrnn_image_segmentation.py`
+>> python cvrnn_image_segmentation.py
 ```
 
 So far only the 2-shapes dataset example is run.
