@@ -5,6 +5,7 @@ import jax.numpy as jnp
 import numpy as np
 from sklearn.cluster import KMeans
 import matplotlib.pyplot as plt
+jax.config.update("jax_enable_x64", True)
 
 def gaussian_sheet(nrow, ncol, a, s, phi=None):
     """
@@ -55,6 +56,7 @@ def run_2layer(im, a, s, nt, seed):
     Nr, Nc = im.shape
     # Build the layer 1 connection matrix.
     K1 = gaussian_sheet(Nr, Nc, a[0], s[0])
+    K1 = K1.astype(jnp.complex128)
     
     # Set up the random key and generate the initial condition.
     key = jax.random.PRNGKey(seed)
@@ -71,7 +73,7 @@ def run_2layer(im, a, s, nt, seed):
     # --- Layer 1 dynamics ---
     def step_fn(carry, _):
         x = carry
-        x = (1j * omega).astype(jnp.complex64) * x + K1 @ x
+        x = (1j * omega) * x + K1 @ x
         return x, x
 
     _, x_history = jax.lax.scan(step_fn, x0, None, length=nt1-1)
@@ -91,6 +93,7 @@ def run_2layer(im, a, s, nt, seed):
     # --- Layer 2 dynamics ---
     # Build a new Gaussian sheet for layer 2.
     K2 = gaussian_sheet(Nr, Nc, a[1], s[1])
+    K2 = K2.astype(jnp.complex128)
     # Zero out connections to/from nodes in the mask.
     valid = jnp.logical_not(mask)
     mask_float = valid.astype(jnp.float32)  # 1 for valid, 0 for masked.
@@ -109,7 +112,7 @@ def run_2layer(im, a, s, nt, seed):
     _, x_history2 = jax.lax.scan(step_fn2, x02, None, length=nt_total-nt1)
 
     # For nodes in the mask, set the layer 2 dynamics to NaN.
-    nan_complex = jnp.array(jnp.nan + 1j * jnp.nan, dtype=jnp.complex128)
+    nan_complex = jnp.array(jnp.nan, dtype=x0.dtype) + 1j * jnp.array(jnp.nan, dtype=x0.dtype)
     # Here we “broadcast” over time indices t >= nt1.
     time_idx = jnp.arange(nt_total)
     # Create a boolean mask for times in layer 2.
