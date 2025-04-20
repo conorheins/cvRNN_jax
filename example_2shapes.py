@@ -20,12 +20,7 @@ def main():
     # 2‑Shapes
     data = loadmat('dataset/2shapes.mat')
     im = data['images'][:, :, 0]        # MATLAB’s image 1
-    nt = layer_time_points
-    X, mask = run_2layer(im, alpha, sigma, nt, seed=1)
-
-    # reshape & phase
-    Nr, Nc = im.shape
-    x_full = jnp.angle(X).reshape(Nr, Nc, -1)
+    # ground‑truth labels available in data['labels'] if you want to compute accuracy
 
     # --- Plot the input image ---
     plt.figure()
@@ -34,6 +29,14 @@ def main():
     plt.axis('off')
     plt.show()
 
+    nt = layer_time_points
+    X, mask = run_2layer(im, alpha, sigma, nt, seed=1)
+
+    # reshape & phase
+    Nr, Nc = im.shape
+    x_full = jnp.angle(X).reshape(Nr, Nc, -1)
+
+    # optional: visualize dynamics
     plot_dynamics(x_full, layer_time_points[0])
 
     # spectral clustering
@@ -78,7 +81,7 @@ def main():
     plt.figure()
     # Here we “mask” the background (masked nodes remain 0) when displaying.
     plt.imshow(segmented_image, cmap='viridis')
-    plt.title('segmented image')
+    plt.title(' shapes segmented')
     plt.axis('off')
     plt.show()
 
