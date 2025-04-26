@@ -1,9 +1,10 @@
+# cv_rnn.py
+
 import jax
 import jax.numpy as jnp
 import numpy as np
-import matplotlib.pyplot as plt
-from scipy.io import loadmat
 from sklearn.cluster import KMeans
+import matplotlib.pyplot as plt
 jax.config.update("jax_enable_x64", True)
 
 def gaussian_sheet(nrow, ncol, a, s, phi=None):
@@ -37,7 +38,6 @@ def gaussian_sheet(nrow, ncol, a, s, phi=None):
         W = jnp.where(W < 0.04, W * jnp.exp(1j * phi), W)
     return W
 
-
 def run_2layer(im, a, s, nt, seed):
     """
     Run the two–layer CV‑RNN dynamics.
@@ -56,6 +56,7 @@ def run_2layer(im, a, s, nt, seed):
     Nr, Nc = im.shape
     # Build the layer 1 connection matrix.
     K1 = gaussian_sheet(Nr, Nc, a[0], s[0])
+    K1 = K1.astype(jnp.complex128)
     
     # Set up the random key and generate the initial condition.
     key = jax.random.PRNGKey(seed)
@@ -72,7 +73,7 @@ def run_2layer(im, a, s, nt, seed):
     # --- Layer 1 dynamics ---
     def step_fn(carry, _):
         x = carry
-        x = (1j * omega).astype(jnp.complex64) * x + K1 @ x
+        x = (1j * omega) * x + K1 @ x
         return x, x
 
     _, x_history = jax.lax.scan(step_fn, x0, None, length=nt1-1)
@@ -92,6 +93,7 @@ def run_2layer(im, a, s, nt, seed):
     # --- Layer 2 dynamics ---
     # Build a new Gaussian sheet for layer 2.
     K2 = gaussian_sheet(Nr, Nc, a[1], s[1])
+    K2 = K2.astype(jnp.complex128)
     # Zero out connections to/from nodes in the mask.
     valid = jnp.logical_not(mask)
     mask_float = valid.astype(jnp.float32)  # 1 for valid, 0 for masked.
@@ -110,7 +112,7 @@ def run_2layer(im, a, s, nt, seed):
     _, x_history2 = jax.lax.scan(step_fn2, x02, None, length=nt_total-nt1)
 
     # For nodes in the mask, set the layer 2 dynamics to NaN.
-    nan_complex = jnp.array(jnp.nan + 1j * jnp.nan, dtype=jnp.complex128)
+    nan_complex = jnp.array(complex(jnp.nan, jnp.nan), dtype=x0.dtype)
     # Here we “broadcast” over time indices t >= nt1.
     time_idx = jnp.arange(nt_total)
     # Create a boolean mask for times in layer 2.
@@ -121,7 +123,6 @@ def run_2layer(im, a, s, nt, seed):
     total_history = jnp.where(jnp.outer(mask, time_mask), nan_complex, total_history)
     
     return total_history, mask
-
 
 def spatiotemporal_segmentation(x, dims, win, ws, dw):
     """
@@ -178,7 +179,6 @@ def spatiotemporal_segmentation(x, dims, win, ws, dw):
     
     return rho_stack, V_stack, D_stack, prj_stack
 
-
 def plot_dynamics(x, layer1_final_time):
     """
     Animate the phase dynamics as an image.
@@ -206,101 +206,3 @@ def plot_dynamics(x, layer1_final_time):
     plt.ioff()
     plt.show()
     return ax
-
-def main():
-    # --- Set up hyperparameters ---
-    alpha = (0.5, 0.5)
-    sigma = (0.9, 0.0313)
-    # In MATLAB: layer_1_time_range = 1:60 and layer_2_time_range = 61:200.
-    # Here we simply pass the final time indices.
-    layer_time_points = (60, 200)
-    
-    dims = [0, 1, 2]       # we extract three dimensions (Python indices 0,1,2)
-    window_size = 40
-    window_step = 40
-    
-    # --- Example 1: 2–shapes dataset ---
-    # Load the dataset (assumes the .mat file contains variables 'images' and 'labels')
-    data = loadmat('dataset/2shapes.mat')
-    images = data['images']  # shape (Nr, Nc, num_images)
-    labels = data['labels']
-    
-    # Choose one example (MATLAB uses 1-indexing; here we use index 0)
-    image_number = 0
-    im = images[:, :, image_number]
-    lb = labels[:, :, image_number]
-    
-    # Run the cv-RNN dynamics.
-    random_seed = 1
-    # nt: (number of time steps for layer 1, total number of time steps)
-    nt = (layer_time_points[0], layer_time_points[1])
-    save_x, mask = run_2layer(im, alpha, sigma, nt, random_seed)
-    
-    # Reshape the saved dynamics to (Nr, Nc, T) and extract the phase.
-    Nr, Nc = im.shape
-    x_full = jnp.angle(save_x).reshape(Nr, Nc, -1)
-    
-    # --- Plot the input image ---
-    plt.figure()
-    plt.imshow(im, cmap='gray')
-    plt.title('input')
-    plt.axis('off')
-    plt.show()
-    
-    # --- Animate the CV-RNN dynamics ---
-    plot_dynamics(x_full, layer_time_points[0])
-    
-    # --- Spectral Clustering ---
-    # Reshape the dynamics to (num_pixels, T) and “lift” them to the complex circle.
-    x_reshaped = jnp.exp(1j * x_full.reshape(-1, x_full.shape[2]))
-    # Consider only nodes that are not masked (i.e. not background)
-    valid_indices = jnp.where(~mask.flatten())[0]
-    x_valid = x_reshaped[valid_indices, :]
-    
-    # Run spatiotemporal segmentation on the valid nodes.
-    win = (layer_time_points[0], layer_time_points[1])
-    # x_valid = loadmat('/Users/conorheins/Documents/Verses/liboniEA2025image/x_valid.mat')['x']
-    rho, V, D, prj = spatiotemporal_segmentation(x_valid, dims, win, window_size, window_step)
-    
-    # --- Visualize the similarity projection ---
-    # (Here we select the last time window.)
-    w = prj.shape[-1] - 1
-    colors = jnp.angle(x_valid[:, 120])  # use a time index (e.g. 120th timestep)
-    prj_last = prj[:, :, w]
-    
-    fig = plt.figure()
-    ax = fig.add_subplot(111, projection='3d')
-    sc = ax.scatter(np.array(prj_last[:, 0]),
-                    np.array(prj_last[:, 1]),
-                    np.array(prj_last[:, 2]),
-                    c=np.array(colors), cmap='hsv', s=50)
-    ax.set_xlabel('dimension 1')
-    ax.set_ylabel('dimension 2')
-    ax.set_zlabel('dimension 3')
-    plt.title('similarity projection')
-    fig.colorbar(sc, label='phase (rad)')
-    plt.show()
-    
-    # --- Final segmentation using k-means ---
-    kmeans = KMeans(n_clusters=2)
-    predict = kmeans.fit_predict(np.array(prj_last[:, :3]))
-    
-    # Build the segmented image.
-    # Create an array of zeros for all pixels.
-    segmented_image = np.zeros(mask.flatten().shape, dtype=np.float32)
-
-    # Assign the predicted cluster labels to these valid indices, adding one to make sure each cluster gets its own color
-    segmented_image[valid_indices] = predict+1
-
-    # Reshape the segmented_image to the original image dimensions.
-    segmented_image = segmented_image.reshape(Nr, Nc)
-
-    plt.figure()
-    # Here we “mask” the background (masked nodes remain 0) when displaying.
-    plt.imshow(segmented_image, cmap='viridis')
-    plt.title('segmented image')
-    plt.axis('off')
-    plt.show()
-
-if __name__ == '__main__':
-    main()
