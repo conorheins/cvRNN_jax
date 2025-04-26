@@ -17,6 +17,9 @@ ENV/
 output/
 *.png
 
+# MATLAB files
+*.m
+
 # Jupyter notebook checkpoints
 .ipynb_checkpoints/
 
