@@ -10,6 +10,7 @@ from jax import numpy as jnp
 from cv_rnn import run_2layer, spatiotemporal_segmentation, plot_dynamics
 from sklearn.cluster import KMeans
 import argparse
+import os
 
 def main(seed, visualize_dynamics=False):
     # Set matplotlib backend based on whether we're visualizing dynamics
@@ -17,6 +18,10 @@ def main(seed, visualize_dynamics=False):
         matplotlib.use('Agg')
     else:
         matplotlib.use('TkAgg')  # or 'Qt5Agg' if you prefer
+
+    # Create output directory if it doesn't exist
+    output_dir = 'output'
+    os.makedirs(output_dir, exist_ok=True)
 
     # hyperparams (same for both examples)
     alpha = (0.5, 0.5)
@@ -27,7 +32,7 @@ def main(seed, visualize_dynamics=False):
 
     # 2‑Shapes
     data = loadmat('dataset/2shapes.mat')
-    im = data['images'][:, :, 0]        # MATLAB’s image 1
+    im = data['images'][:, :, 0]        # MATLAB's image 1
     # ground‑truth labels available in data['labels'] if you want to compute accuracy
 
     # --- Plot the input image ---
@@ -35,7 +40,7 @@ def main(seed, visualize_dynamics=False):
     plt.imshow(im, cmap='gray')
     plt.title('input')
     plt.axis('off')
-    plt.savefig(f'example_2shapes_input_seed_{seed}.png', bbox_inches='tight')
+    plt.savefig(os.path.join(output_dir, f'example_2shapes_input_seed_{seed}.png'), bbox_inches='tight')
     plt.close()
 
     nt = layer_time_points
@@ -72,7 +77,7 @@ def main(seed, visualize_dynamics=False):
     ax.set_zlabel('dimension 3')
     plt.title('similarity projection')
     fig.colorbar(sc, label='phase (rad)')
-    plt.savefig(f'example_2shapes_similarity_seed_{seed}.png', bbox_inches='tight')
+    plt.savefig(os.path.join(output_dir, f'example_2shapes_similarity_seed_{seed}.png'), bbox_inches='tight')
     plt.close()
     
     # --- Final segmentation using k-means ---
@@ -90,11 +95,11 @@ def main(seed, visualize_dynamics=False):
     segmented_image = segmented_image.reshape(Nr, Nc)
 
     plt.figure()
-    # Here we “mask” the background (masked nodes remain 0) when displaying.
+    # Here we "mask" the background (masked nodes remain 0) when displaying.
     plt.imshow(segmented_image, cmap='viridis')
     plt.title('shapes segmented')
     plt.axis('off')
-    plt.savefig(f'example_2shapes_segmented_seed_{seed}.png', bbox_inches='tight')
+    plt.savefig(os.path.join(output_dir, f'example_2shapes_segmented_seed_{seed}.png'), bbox_inches='tight')
     plt.close()
 
 if __name__=='__main__':

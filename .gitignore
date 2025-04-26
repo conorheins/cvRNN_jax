@@ -1,0 +1,28 @@
+# Python bytecode files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Distribution / packaging
+dist/
+build/
+*.egg-info/
+
+# Virtual environments
+venv/
+env/
+ENV/
+
+# Output files and directories
+output/
+*.png
+
+# Jupyter notebook checkpoints
+.ipynb_checkpoints/
+
+# MacOS specific files
+.DS_Store
+
+# IDE files
+.idea/
+.vscode/ 

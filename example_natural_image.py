@@ -10,6 +10,7 @@ import matplotlib.pyplot as plt
 from scipy.io import loadmat
 from sklearn.cluster import KMeans
 import argparse
+import os
 
 from cv_rnn import run_2layer, spatiotemporal_segmentation, plot_dynamics
 
@@ -19,6 +20,10 @@ def main(seed, visualize_dynamics=False):
         matplotlib.use('Agg')
     else:
         matplotlib.use('TkAgg')  # or 'Qt5Agg' if you prefer
+
+    # Create output directory if it doesn't exist
+    output_dir = 'output'
+    os.makedirs(output_dir, exist_ok=True)
 
     # --- hyperparameters ---
     alpha = (0.5, 0.5)
@@ -39,7 +44,7 @@ def main(seed, visualize_dynamics=False):
     plt.imshow(original_image, cmap='gray')
     plt.title('original image')
     plt.axis('off')
-    plt.savefig(f'example_natural_image_original_seed_{seed}.png', bbox_inches='tight')
+    plt.savefig(os.path.join(output_dir, f'example_natural_image_original_seed_{seed}.png'), bbox_inches='tight')
     plt.close()
 
     # --- Plot the input image ---
@@ -47,7 +52,7 @@ def main(seed, visualize_dynamics=False):
     plt.imshow(im, cmap='gray')
     plt.title('input')
     plt.axis('off')
-    plt.savefig(f'example_natural_image_input_seed_{seed}.png', bbox_inches='tight')
+    plt.savefig(os.path.join(output_dir, f'example_natural_image_input_seed_{seed}.png'), bbox_inches='tight')
     plt.close()
 
     # --- run cv-RNN ---
@@ -90,7 +95,7 @@ def main(seed, visualize_dynamics=False):
     ax.set_zlabel('dimension 3')
     plt.title('similarity projection')
     fig.colorbar(sc, label='phase (rad)')
-    plt.savefig(f'example_natural_image_similarity_seed_{seed}.png', bbox_inches='tight')
+    plt.savefig(os.path.join(output_dir, f'example_natural_image_similarity_seed_{seed}.png'), bbox_inches='tight')
     plt.close()
 
     # --- final segmentation via k‑means (2 clusters) ---
@@ -108,7 +113,7 @@ def main(seed, visualize_dynamics=False):
     plt.imshow(segmented_image, cmap='viridis')
     plt.title('segmented image')
     plt.axis('off')
-    plt.savefig(f'example_natural_image_segmented_seed_{seed}.png', bbox_inches='tight')
+    plt.savefig(os.path.join(output_dir, f'example_natural_image_segmented_seed_{seed}.png'), bbox_inches='tight')
     plt.close()
 
 if __name__ == "__main__":
