@@ -104,7 +104,7 @@ def main(seed, visualize_dynamics=False):
 
 if __name__=='__main__':
     parser = argparse.ArgumentParser(description='2-shapes segmentation example')
-    parser.add_argument('--seed', type=int, default=1, help='random seed for run_2layer')
+    parser.add_argument('--seed', type=int, default=2, help='random seed for run_2layer')
     parser.add_argument('--visualize_dynamics', action='store_true', help='whether to visualize the dynamics')
     args = parser.parse_args()
     main(args.seed, args.visualize_dynamics)
