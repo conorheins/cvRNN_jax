@@ -10,6 +10,7 @@ import matplotlib.pyplot as plt
 from scipy.io import loadmat
 from sklearn.cluster import KMeans
 import argparse
+import os
 
 from cv_rnn import run_2layer, spatiotemporal_segmentation, plot_dynamics
 
@@ -19,6 +20,10 @@ def main(seed, visualize_dynamics=False):
         matplotlib.use('Agg')
     else:
         matplotlib.use('TkAgg')  # or 'Qt5Agg' if you prefer
+
+    # Create output directory if it doesn't exist
+    output_dir = 'output'
+    os.makedirs(output_dir, exist_ok=True)
 
     # --- hyperparameters ---
     alpha = (0.5, 0.5)
@@ -38,7 +43,7 @@ def main(seed, visualize_dynamics=False):
     plt.imshow(im, cmap='gray')
     plt.title('input')
     plt.axis('off')
-    plt.savefig(f'example_3shapes_input_seed_{seed}.png', bbox_inches='tight')
+    plt.savefig(os.path.join(output_dir, f'example_3shapes_input_seed_{seed}.png'), bbox_inches='tight')
     plt.close()
 
     # --- run cv-RNN ---
@@ -76,12 +81,12 @@ def main(seed, visualize_dynamics=False):
         np.array(prj_last[:, 1]),
         np.array(prj_last[:, 2]),
         c=np.array(colors), cmap='hsv', s=50)
-    ax.set_xlabel('dim 1')
-    ax.set_ylabel('dim 2')
-    ax.set_zlabel('dim 3')
+    ax.set_xlabel('dim 1')
+    ax.set_ylabel('dim 2')
+    ax.set_zlabel('dim 3')
     plt.title('3‑Shapes similarity projection')
     fig.colorbar(sc, label='phase (rad)')
-    plt.savefig(f'example_3shapes_similarity_seed_{seed}.png', bbox_inches='tight')
+    plt.savefig(os.path.join(output_dir, f'example_3shapes_similarity_seed_{seed}.png'), bbox_inches='tight')
     plt.close()
 
     # --- final segmentation via k‑means (3 clusters) ---
@@ -98,7 +103,7 @@ def main(seed, visualize_dynamics=False):
     plt.imshow(segmented_image, cmap='viridis')
     plt.title('3 shapes segmented')
     plt.axis('off')
-    plt.savefig(f'example_3shapes_segmented_seed_{seed}.png', bbox_inches='tight')
+    plt.savefig(os.path.join(output_dir, f'example_3shapes_segmented_seed_{seed}.png'), bbox_inches='tight')
     plt.close()
 
 if __name__ == "__main__":

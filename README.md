@@ -71,7 +71,7 @@ Each example script accepts the following arguments:
 
 ## Outputs
 
-Each script produces several output files:
+Each script produces several output files in the `output/` directory:
 
 1. Input image visualization
 2. 3D similarity projection plot
