@@ -92,7 +92,7 @@ def main(seed, visualize_dynamics=False):
     plt.figure()
     # Here we “mask” the background (masked nodes remain 0) when displaying.
     plt.imshow(segmented_image, cmap='viridis')
-    plt.title(' shapes segmented')
+    plt.title('shapes segmented')
     plt.axis('off')
     plt.savefig(f'example_2shapes_segmented_seed_{seed}.png', bbox_inches='tight')
     plt.close()
