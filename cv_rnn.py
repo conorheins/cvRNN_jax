@@ -112,7 +112,7 @@ def run_2layer(im, a, s, nt, seed):
     _, x_history2 = jax.lax.scan(step_fn2, x02, None, length=nt_total-nt1)
 
     # For nodes in the mask, set the layer 2 dynamics to NaN.
-    nan_complex = jnp.array(jnp.nan, dtype=x0.dtype) + 1j * jnp.array(jnp.nan, dtype=x0.dtype)
+    nan_complex = jnp.array(complex(jnp.nan, jnp.nan), dtype=x0.dtype)
     # Here we “broadcast” over time indices t >= nt1.
     time_idx = jnp.arange(nt_total)
     # Create a boolean mask for times in layer 2.
