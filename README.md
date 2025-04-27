@@ -4,14 +4,23 @@ This is a direct JAX re-implementation of the MATLAB code accompaying the paper 
 
 The original MATLAB source code can be found at the following repository: https://github.com/mullerlab/liboniEA2025image
 
+## Implementation
+
+This repository provides two implementation approaches:
+1. A functional JAX implementation in `cv_rnn.py`
+2. An object-oriented implementation using Equinox in `cvrnn_layer.py`, featuring:
+   - `CVRNNLayer`: A single-layer implementation with various initialization options
+   - `MultiLayerCVRNN`: A multi-layer implementation that supports layer stacking
+
 ## Requirements
 
 - jax
 - jaxlib
+- equinox
 - numpy
 - matplotlib
 - scipy
-- sklearn
+- scikit-learn (sklearn)
 
 ## Usage
 
