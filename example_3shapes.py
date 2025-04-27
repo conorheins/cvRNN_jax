@@ -12,7 +12,8 @@ from sklearn.cluster import KMeans
 import argparse
 import os
 
-from cv_rnn import run_2layer, spatiotemporal_segmentation, plot_dynamics
+from cv_rnn import spatiotemporal_segmentation, plot_dynamics, gaussian_sheet
+from cvrnn_layer import CVRNNLayer, MultiLayerCVRNN
 
 def main(seed, visualize_dynamics=False):
     # Set matplotlib backend based on whether we're visualizing dynamics
@@ -28,7 +29,7 @@ def main(seed, visualize_dynamics=False):
     # --- hyperparameters ---
     alpha = (0.5, 0.5)
     sigma = (0.9, 0.0313)
-    layer_time_points = (60, 200)
+    nt1, nt2 = (60, 200)
     dims = [0, 1, 2]
     window_size = 40
     window_step = 40
@@ -36,6 +37,8 @@ def main(seed, visualize_dynamics=False):
     # --- load 3‑Shapes dataset ---
     data = loadmat('dataset/3shapes.mat')
     im = data['images'][:, :, 0]    # MATLAB image #1
+    Nr, Nc = im.shape
+    N = Nr * Nc
     # ground‑truth labels available in data['labels'] if you want to compute accuracy
 
      # --- Plot the input image ---
@@ -43,33 +46,56 @@ def main(seed, visualize_dynamics=False):
     plt.imshow(im, cmap='gray')
     plt.title('input')
     plt.axis('off')
-    plt.savefig(os.path.join(output_dir, f'example_3shapes_input_seed_{seed}.png'), bbox_inches='tight')
+    plt.savefig(f'{output_dir}/example_3shapes_input_seed_{seed}.png', bbox_inches='tight')
     plt.close()
 
-    # --- run cv-RNN ---
-    nt = layer_time_points
-    X, mask = run_2layer(im, alpha, sigma, nt, seed=seed)
+    # build ω
+    omega = im.flatten().astype(jnp.float64)
 
-    # reshape and extract phase
-    Nr, Nc = im.shape
+    # build B1, B2
+    B1 = gaussian_sheet(Nr, Nc, alpha[0], sigma[0]).astype(jnp.complex128)
+    B2 = gaussian_sheet(Nr, Nc, alpha[1], sigma[1]).astype(jnp.complex128)
+
+    # instantiate layers & model
+    layer1 = CVRNNLayer(B=B1, nt=nt1)
+    layer2 = CVRNNLayer(B=B2, nt=nt2 - nt1)
+    model  = MultiLayerCVRNN([layer1, layer2])
+
+    # generate x0 using the same split pattern as run_2layer
+    key = jax.random.PRNGKey(seed)
+    key, subkey = jax.random.split(key)
+
+    # run multi-layer
+    (h1, h2), (mask1, mask2) = model(omega=omega, key=subkey)
+
+    # assemble full history and re-apply NaNs on masked nodes in layer 2
+    combined = jnp.concatenate([h1, h2], axis=0)  # (nt2, N)
+    nan_c = jnp.array(0+0j).at[()].set(complex(jnp.nan, jnp.nan))
+    times = jnp.arange(nt2)
+    tmask = times >= nt1              # shape (nt2,)
+    mask_time = jnp.outer(tmask, mask1)  # (nt2, N)
+    combined = jnp.where(mask_time, nan_c, combined)
+
+    # transpose, angle, reshape
+    X = combined.T                     # (N, nt2)
     x_full = jnp.angle(X).reshape(Nr, Nc, -1)
 
-    # visualize dynamics if requested
+    # optional dynamics plot
     if visualize_dynamics:
-        plot_dynamics(x_full, layer_time_points[0])
+        plot_dynamics(x_full, nt1)
 
     # --- spectral clustering ---
     # lift back onto complex unit circle
     x_flat = x_full.reshape(-1, x_full.shape[2])
     x_lift = jnp.exp(1j * x_flat)
-    valid_indices = jnp.where(~mask.flatten())[0]
-    x_valid = x_lift[valid_indices, :]
+    valid = ~mask1
+    x_valid = x_lift[valid, :]
 
     rho, V, D, prj = spatiotemporal_segmentation(
-        x_valid, dims, layer_time_points, window_size, window_step
+        x_valid, dims, (nt1, nt2), window_size, window_step
     )
 
-    # --- similarity projection ---
+    # --- similarity projection (last window) ---
     w = prj.shape[-1] - 1
     colors = jnp.angle(x_valid[:, 120])  # e.g. 120th timestep
     prj_last = prj[:, :, w]
@@ -81,29 +107,30 @@ def main(seed, visualize_dynamics=False):
         np.array(prj_last[:, 1]),
         np.array(prj_last[:, 2]),
         c=np.array(colors), cmap='hsv', s=50)
-    ax.set_xlabel('dim 1')
-    ax.set_ylabel('dim 2')
-    ax.set_zlabel('dim 3')
+    ax.set_xlabel('dim1')
+    ax.set_ylabel('dim2')
+    ax.set_zlabel('dim3')
     plt.title('3‑Shapes similarity projection')
     fig.colorbar(sc, label='phase (rad)')
-    plt.savefig(os.path.join(output_dir, f'example_3shapes_similarity_seed_{seed}.png'), bbox_inches='tight')
+    plt.savefig(f'{output_dir}/example_3shapes_similarity_seed_{seed}.png', bbox_inches='tight')
     plt.close()
 
-    # --- final segmentation via k‑means (3 clusters) ---
-    predict = KMeans(n_clusters=3).fit_predict(np.array(prj_last[:, :3]))
+    # --- final k-means segmentation (3 clusters) ---
+    predict = KMeans(n_clusters=3, random_state=seed).fit_predict(np.array(prj_last[:, :3]))
+    
     # Build the segmented image.
     # Create an array of zeros for all pixels.
-    segmented_image = np.zeros(mask.flatten().shape, dtype=np.float32)
+    segmented = np.zeros(N, dtype=np.float32)
     # Assign the predicted cluster labels to these valid indices, adding one to make sure each cluster gets its own color
-    segmented_image[valid_indices] = predict+1
-    segmented_image = segmented_image.reshape(Nr, Nc)
+    segmented[np.where(valid)[0]] = predict + 1
+    segmented = segmented.reshape(Nr, Nc)
 
     plt.figure()
     # Here we "mask" the background (masked nodes remain 0) when displaying.
-    plt.imshow(segmented_image, cmap='viridis')
+    plt.imshow(segmented, cmap='viridis')
     plt.title('3 shapes segmented')
     plt.axis('off')
-    plt.savefig(os.path.join(output_dir, f'example_3shapes_segmented_seed_{seed}.png'), bbox_inches='tight')
+    plt.savefig(f'{output_dir}/example_3shapes_segmented_seed_{seed}.png', bbox_inches='tight')
     plt.close()
 
 if __name__ == "__main__":
