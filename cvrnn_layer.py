@@ -1,13 +1,13 @@
 import equinox as eqx
 import jax, jax.numpy as jnp
-from typing import Optional, Tuple
+from typing import Optional, Sequence, Tuple
 
 class CVRNNLayer(eqx.Module):
     """
     One cv-RNN layer:
-      - B:      (N×N) complex connectivity matrix
-      - nt:     number of timesteps to unroll
-      - x0:     optional fixed initial condition
+      - B:  (N×N) complex connectivity
+      - nt: timesteps
+      - x0: optional stored initial state
     """
     B: jnp.ndarray
     nt: int
@@ -31,7 +31,6 @@ class CVRNNLayer(eqx.Module):
         # B should already be complex128 of shape (N, N)
         self.B = B
         self.nt = nt
-        
         # Initialize x0 if provided, otherwise keep as None
         if x0 is not None:
             self.x0 = x0
@@ -56,7 +55,8 @@ class CVRNNLayer(eqx.Module):
     def __call__(self,
                  omega: jnp.ndarray,     # shape (..., N), float64
                  x0: Optional[jnp.ndarray] = None,  # shape (..., N), complex128
-                 key: Optional[jax.Array] = None    # optional key for runtime initialization
+                 key: Optional[jax.Array] = None,    # optional key for runtime initialization
+                 mask: Optional[jnp.ndarray] = None  # boolean shape (..., N)
                  ) -> jnp.ndarray:
         """
         Runs the recurrent dynamics for nt steps.
@@ -93,14 +93,80 @@ class CVRNNLayer(eqx.Module):
             # No initial state available
             raise ValueError("No initial state (x0) provided. Either pass x0 or key to __call__, or initialize the layer with x0 or key.")
 
+
+        # 2) apply mask if present
+        if mask is not None:
+            # mask == True ⇒ background ⇒ zero out
+            valid_f = (~mask).astype(omega.dtype)
+            B_eff = self.B * jnp.outer(valid_f, valid_f)
+            omega_eff = jnp.where(mask, 0.0, omega)
+            initial_x = jnp.where(mask, 0.0 + 0j, initial_x)
+        else:
+            B_eff = self.B
+            omega_eff = omega
+
+        # 3) unroll
         def step(x, _):
             # x: shape (..., N)
             # the core update: x ← (i·ω)*x + B @ x
-            x_next = (1j * omega) * x + jnp.matmul(self.B, x[..., None])[..., 0]
+            x_next = (1j * omega_eff) * x + jnp.matmul(B_eff, x[..., None])[..., 0]
             return x_next, x_next
 
         # lax.scan will broadcast over any leading batch dims in initial_x/omega
         _, hist = jax.lax.scan(step, initial_x, None, length=self.nt - 1)
-
+    
         # prepend the initial state
         return jnp.concatenate([initial_x[None, ...], hist], axis=0)
+
+class MultiLayerCVRNN(eqx.Module):
+    """
+    Stack of CVRNNLayer. On each layer:
+      - run layer_i from the SAME original x0 but masked by mask_{i-1}
+      - compute mask_i from the final-phase mean‐threshold rule
+    """
+    layers: Tuple[CVRNNLayer, ...]
+    
+    def __init__(self, layers: Sequence[CVRNNLayer]):
+        self.layers = tuple(layers)
+
+    def __call__(self,
+                 omega: jnp.ndarray,        # shape (N,)
+                 x0: Optional[jnp.ndarray] = None,
+                 key: Optional[jax.Array] = None
+                 ) -> Tuple[Tuple[jnp.ndarray, ...], Tuple[jnp.ndarray, ...]]:
+        # Determine the original x0 once (for all layers)
+        if key is not None:
+            # use first layer’s generator
+            x0_orig = self.layers[0]._generate_x0(key)
+        elif x0 is not None:
+            x0_orig = x0
+        elif self.layers[0].x0 is not None:
+            x0_orig = self.layers[0].x0
+        else:
+            raise ValueError("Must supply x0 or key")
+
+        histories = []
+        masks     = []
+        prev_mask = None
+
+        for layer in self.layers:
+            # run it
+            h = layer(omega=omega, x0=x0_orig, mask=prev_mask)
+            histories.append(h)
+
+            # compute new mask from final phase
+            final_phase = jnp.angle(h[-1])
+            thr = jnp.mean(final_phase)
+            above = final_phase > thr
+            below = final_phase < thr
+            # choose the smaller‐group rule
+            count_above = jnp.sum(above)
+            count_below = jnp.sum(below)
+            mask_i = jax.lax.cond(count_above > count_below,
+                                  lambda _: above,
+                                  lambda _: below,
+                                  operand=None)
+            masks.append(mask_i)
+            prev_mask = mask_i
+
+        return tuple(histories), tuple(masks)
