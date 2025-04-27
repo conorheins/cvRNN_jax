@@ -38,7 +38,6 @@ def main(seed, visualize_dynamics=False):
     N = Nr * Nc
     # ground‑truth labels available in data['labels'] if you want to compute accuracy
 
-
     # --- Plot the input image ---
     plt.figure()
     plt.imshow(im, cmap='gray')
