@@ -53,10 +53,11 @@ class CVRNNLayer(eqx.Module):
         return jnp.exp(1j * rand_angles)
 
     def __call__(self,
-                 omega: jnp.ndarray,     # shape (..., N), float64
-                 x0: Optional[jnp.ndarray] = None,  # shape (..., N), complex128
-                 key: Optional[jax.Array] = None,    # optional key for runtime initialization
-                 mask: Optional[jnp.ndarray] = None  # boolean shape (..., N)
+                 omega: jnp.ndarray,                  # shape (..., N), float64
+                 x0: Optional[jnp.ndarray] = None,    # shape (..., N), complex128
+                 key: Optional[jax.Array] = None,     # optional key for runtime initialization
+                 mask: Optional[jnp.ndarray] = None,  # boolean shape (..., N)
+                 include_initial: bool = True         # whether to prepend initial state
                  ) -> jnp.ndarray:
         """
         Runs the recurrent dynamics for nt steps.
@@ -112,11 +113,15 @@ class CVRNNLayer(eqx.Module):
             x_next = (1j * omega_eff) * x + jnp.matmul(B_eff, x[..., None])[..., 0]
             return x_next, x_next
 
-        # lax.scan will broadcast over any leading batch dims in initial_x/omega
-        _, hist = jax.lax.scan(step, initial_x, None, length=self.nt - 1)
-    
-        # prepend the initial state
-        return jnp.concatenate([initial_x[None, ...], hist], axis=0)
+        if include_initial:
+            # scan nt-1 steps, then prepend initial_x, total length = nt
+            _, hist = jax.lax.scan(step, initial_x, None, length=self.nt - 1)
+            hist = jnp.concatenate([initial_x[None, ...], hist], axis=0)
+        else:
+            # scan exactly nt steps, return the post-step states x1…x_nt
+            _, hist = jax.lax.scan(step, initial_x, None, length=self.nt)
+        return hist
+
 
 class MultiLayerCVRNN(eqx.Module):
     """
@@ -149,9 +154,14 @@ class MultiLayerCVRNN(eqx.Module):
         masks     = []
         prev_mask = None
 
-        for layer in self.layers:
-            # run it
-            h = layer(omega=omega, x0=x0_orig, mask=prev_mask)
+        for i, layer in enumerate(self.layers):
+            # include initial only in layer 0; layer 1+ use only post-step history
+            h = layer(
+                omega=omega,
+                x0=x0_orig,
+                mask=prev_mask,
+                include_initial=(i == 0),
+            )
             histories.append(h)
 
             # compute new mask from final phase
