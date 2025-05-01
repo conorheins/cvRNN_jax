@@ -88,6 +88,8 @@ def main(seed, image_index=0, visualize_dynamics=False, ensemble_size=1):
     # mask1s.shape == (ensemble, N)
 
     # do the rest of the plotting / etc. for each model's output of the ensemble
+    # run and evaluate each seed/model
+    accuracies = []
     for ii in range(ensemble_size):
         # assemble full history and re-apply NaNs on masked nodes in layer 2
         combined = jnp.concatenate([h1s[ii], h2s[ii]], axis=0)  # (nt2, N)
@@ -136,7 +138,7 @@ def main(seed, image_index=0, visualize_dynamics=False, ensemble_size=1):
 
         # Build the segmented image.
         # Create an array of zeros for all pixels.
-        segmented = np.zeros(N, dtype=np.float32)
+        segmented = np.zeros(N, dtype=np.int32)
         # Assign the predicted cluster labels to these valid indices, adding one to make sure each cluster gets its own color
         segmented[np.where(valid)[0]] = predict + 1
 
@@ -150,6 +152,27 @@ def main(seed, image_index=0, visualize_dynamics=False, ensemble_size=1):
         plt.axis('off')
         plt.savefig(os.path.join(seed_specific_dir, f'segmented_model_{ii}.png'), bbox_inches='tight')
         plt.close()
+
+        # --- compute pixel-wise accuracy against ground truth ---
+        pred_flat = segmented.flatten()
+        # two possible mappings for {1,2} → {1,2}
+        # mapping A: identity   (0→0,1→1,2→2)
+        acc_A = np.mean(pred_flat == labels_flat)
+        # mapping B: swap 1↔2
+        swapped = pred_flat.copy()
+        # temporarily mark 1→-1, 2→1, -1→2
+        swapped[swapped == 1] = -1
+        swapped[swapped == 2] = 1
+        swapped[swapped == -1] = 2
+        acc_B = np.mean(swapped == labels_flat)
+        acc = max(acc_A, acc_B)
+        accuracies.append(acc)
+        # print(f"  model {ii}:  acc={acc:.4f}  (A={acc_A:.4f}, B={acc_B:.4f})")
+    
+    accuracies = jnp.array(accuracies)
+    mean_acc = float(accuracies.mean())
+    var_acc  = float(accuracies.std())
+    print(f"\nOverall accuracy: mean={mean_acc:.4f}, standard deviation={var_acc:.6f}")
 
 if __name__=='__main__':
     parser = argparse.ArgumentParser(description='2-shapes segmentation example')
