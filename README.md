@@ -1,6 +1,8 @@
 # cvRNN_jax 
 
-This is a direct JAX re-implementation of the MATLAB code accompaying the paper [Liboni*, Budzinski*, Busch*, Löwe, Keller, Welling, and Muller (2025) Image segmentation with traveling waves in an exactly solvable recurrent neural network. PNAS 122: e2321319121 *equal contribution](https://www.pnas.org/doi/10.1073/pnas.2321319121)
+This is a JAX implementation of the complex-valued RNN model used for image segmentation, originally based on the MATLAB implementation accompanying the 2024 publication in PNAS:
+
+[Liboni*, Budzinski*, Busch*, Löwe, Keller, Welling, and Muller (2025) Image segmentation with traveling waves in an exactly solvable recurrent neural network. PNAS 122: e2321319121 *equal contribution](https://www.pnas.org/doi/10.1073/pnas.2321319121)
 
 The original MATLAB source code can be found at the following repository: https://github.com/mullerlab/liboniEA2025image
 
@@ -10,7 +12,7 @@ This repository provides two implementation approaches:
 1. A functional JAX implementation in `cv_rnn.py`
 2. An object-oriented implementation using Equinox in `cvrnn_layer.py`, featuring:
    - `CVRNNLayer`: A single-layer implementation with various initialization options
-   - `MultiLayerCVRNN`: A multi-layer implementation that supports layer stacking
+   - `MultiLayerCVRNN`: A multi-layer implementation that supports layer stacking via composition of multiple instances of single `CVRNNLayer` instances.
 
 ## Requirements
 
