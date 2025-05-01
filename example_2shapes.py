@@ -16,7 +16,7 @@ from sklearn.cluster import KMeans
 import argparse
 import os
 
-def main(seed, visualize_dynamics=False, ensemble_size=1):
+def main(seed, image_index=0, visualize_dynamics=False, ensemble_size=1):
     # Set matplotlib backend based on whether we're visualizing dynamics
     if not visualize_dynamics:
         matplotlib.use('Agg')
@@ -36,7 +36,10 @@ def main(seed, visualize_dynamics=False, ensemble_size=1):
 
     # load 2-Shapes
     data = loadmat('dataset/2shapes.mat')
-    im = data['images'][:, :, 0]
+    im = data['images'][:, :, image_index]
+    labels_gt = data['labels'][:,:,image_index].astype(np.int32)
+    labels_flat = labels_gt.flatten()
+
     Nr, Nc = im.shape
     N = Nr * Nc
     # ground‑truth labels available in data['labels'] if you want to compute accuracy
@@ -150,8 +153,9 @@ def main(seed, visualize_dynamics=False, ensemble_size=1):
 
 if __name__=='__main__':
     parser = argparse.ArgumentParser(description='2-shapes segmentation example')
-    parser.add_argument('--seed', type=int, default=2, help='random seed for run_2layer')
+    parser.add_argument('--seed', type=int, default=1, help='random seed for run_2layer')
+    parser.add_argument('--image_index', type=int, default=0, help='Index of the image to use from the dataset')
     parser.add_argument('--visualize_dynamics', action='store_true', help='whether to visualize the dynamics')
     parser.add_argument('--ensemble_size', type=int, default=1, help='size of the model ensemble (number of models to run in parallel with vmap)')
     args = parser.parse_args()
-    main(args.seed, args.visualize_dynamics, args.ensemble_size)
+    main(args.seed, args.image_index, args.visualize_dynamics, args.ensemble_size)
