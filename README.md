@@ -16,6 +16,7 @@ This repository provides two implementation approaches:
 
 - jax
 - jaxlib
+- jaxtyping
 - equinox
 - numpy
 - matplotlib

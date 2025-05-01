@@ -1,6 +1,7 @@
 import equinox as eqx
 import jax, jax.numpy as jnp
 from typing import Optional, Sequence, Tuple
+from jaxtyping import Array, PRNGKeyArray
 
 class CVRNNLayer(eqx.Module):
     """
@@ -9,15 +10,15 @@ class CVRNNLayer(eqx.Module):
       - nt: timesteps
       - x0: optional stored initial state
     """
-    B: jnp.ndarray
+    B: Array
     nt: int
-    x0: Optional[jnp.ndarray]
+    x0: Optional[Array]
 
     def __init__(self,
-                 B: jnp.ndarray,
+                 B: Array,
                  nt: int,
-                 x0: Optional[jnp.ndarray] = None,
-                 key: Optional[jax.Array] = None):
+                 x0: Optional[Array] = None,
+                 key: Optional[PRNGKeyArray] = None):
         """
         Initialize a CV-RNN layer.
         
@@ -44,7 +45,7 @@ class CVRNNLayer(eqx.Module):
         else:
             self.x0 = None
 
-    def _generate_x0(self, key: jax.Array) -> jnp.ndarray:
+    def _generate_x0(self, key: PRNGKeyArray) -> Array:
         """Generate random initial condition from a key."""
         N = self.B.shape[0]
         rand_angles = jax.random.uniform(
@@ -53,12 +54,12 @@ class CVRNNLayer(eqx.Module):
         return jnp.exp(1j * rand_angles)
 
     def __call__(self,
-                 omega: jnp.ndarray,                  # shape (..., N), float64
-                 x0: Optional[jnp.ndarray] = None,    # shape (..., N), complex128
-                 key: Optional[jax.Array] = None,     # optional key for runtime initialization
-                 mask: Optional[jnp.ndarray] = None,  # boolean shape (..., N)
+                 omega: Array,                  # shape (..., N), float64
+                 x0: Optional[Array] = None,    # shape (..., N), complex128
+                 key: Optional[PRNGKeyArray] = None,     # optional key for runtime initialization
+                 mask: Optional[Array] = None,  # boolean shape (..., N)
                  include_initial: bool = True         # whether to prepend initial state
-                 ) -> jnp.ndarray:
+                 ) -> Array:
         """
         Runs the recurrent dynamics for nt steps.
 
@@ -135,10 +136,10 @@ class MultiLayerCVRNN(eqx.Module):
         self.layers = tuple(layers)
 
     def __call__(self,
-                 omega: jnp.ndarray,        # shape (N,)
-                 x0: Optional[jnp.ndarray] = None,
-                 key: Optional[jax.Array] = None
-                 ) -> Tuple[Tuple[jnp.ndarray, ...], Tuple[jnp.ndarray, ...]]:
+                 omega: Array,        # shape (N,)
+                 x0: Optional[Array] = None,
+                 key: Optional[PRNGKeyArray] = None
+                 ) -> Tuple[Tuple[Array, ...], Tuple[Array, ...]]:
         # Determine the original x0 once (for all layers)
         if key is not None:
             # use first layer’s generator
