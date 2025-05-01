@@ -1,10 +1,10 @@
 # cvRNN_jax 
 
-This is a JAX implementation of the complex-valued RNN model used for unsupervised object segmentation, originally based on the MATLAB implementation accompanying the 2024 publication in PNAS:
+This is a JAX implementation of the complex-valued RNN model used for unsupervised object segmentation described in the following paper:
 
 [Liboni*, Budzinski*, Busch*, Löwe, Keller, Welling, and Muller (2025) Image segmentation with traveling waves in an exactly solvable recurrent neural network. PNAS 122: e2321319121 *equal contribution](https://www.pnas.org/doi/10.1073/pnas.2321319121)
 
-The original MATLAB source code can be found at the following repository: https://github.com/mullerlab/liboniEA2025image
+The original MATLAB source code, on which this implementation was originally based, can be found at the following repository: https://github.com/mullerlab/liboniEA2025image
 
 ## Implementation
 
