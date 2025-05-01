@@ -110,7 +110,7 @@ def main(seed, image_index=0, visualize_dynamics=False, ensemble_size=1):
 
         # spectral clustering
         x = jnp.exp(1j * x_full.reshape(-1, x_full.shape[2]))
-        valid = ~mask1s[0]
+        valid = ~mask1s[ii]
         x_valid = x[valid, :]
         rho, V, D, prj = spatiotemporal_segmentation(x_valid, dims, (nt1, nt2), window_size, window_step)
 
