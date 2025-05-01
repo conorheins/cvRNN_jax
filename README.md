@@ -27,106 +27,69 @@ This repository provides two implementation approaches:
 
 ## Usage
 
-The codebase includes three example scripts that demonstrate the CV-RNN approach on different datasets:
-
-### 2-Shapes Example
-
-Demonstrates segmentation of images with two distinct shapes:
+The codebase includes a common run script `run_cv_rnn.py` that can be used to run CVRNN-based segmentation on different datasets:
 
 ```bash
-# Run with default seed
-python example_2shapes.py
+# Basic usage with default parameters
+python run_cv_rnn.py --dataset 2shapes
 
 # Run with custom seed
-python example_2shapes.py --seed 42
+python run_cv_rnn.py --dataset 2shapes --seed 42
 
 # Run with dynamics visualization
-python example_2shapes.py --visualize_dynamics
+python run_cv_rnn.py --dataset 2shapes --visualize_dynamics
 
 # Run with ensemble of 5 models evaluated on the same image in parallel
-python example_2shapes.py --ensemble_size 5
+python run_cv_rnn.py --dataset 2shapes --ensemble_size 5
 
 # Run specific image from dataset
-python example_2shapes.py --image_index 2
+python run_cv_rnn.py --dataset 2shapes --image_index 2
 
-# Run with background pixels excluded from accuracy
-python example_2shapes.py --exclude_background
-
-# Combine multiple options
-python example_2shapes.py --ensemble_size 5 --image_index 2 --exclude_background
-```
-
-### 3-Shapes Example
-
-Demonstrates segmentation of images with three distinct shapes:
-
-```bash
-# Run with default seed
-python example_3shapes.py
-
-# Run with custom seed
-python example_3shapes.py --seed 42
-
-# Run with dynamics visualization
-python example_3shapes.py --visualize_dynamics
-
-# Run with ensemble of 5 models
-python example_3shapes.py --ensemble_size 5
-
-# Run specific image from dataset
-python example_3shapes.py --image_index 2
-
-# Run with background pixels excluded from accuracy
-python example_3shapes.py --exclude_background
+# Run with background pixels excluded for segmentation accuracy calculations
+python run_cv_rnn.py --dataset 2shapes --exclude_background
 
 # Combine multiple options
-python example_3shapes.py --ensemble_size 5 --image_index 2 --exclude_background
+python run_cv_rnn.py --dataset 2shapes --ensemble_size 5 --image_index 2 --exclude_background
 ```
 
-### Natural Image Example
+### Available Datasets
 
-Demonstrates segmentation of a natural image:
+The script supports three different datasets, which are copied here for convenience from the [original MATLAB-based github repository](https://github.com/mullerlab/liboniEA2025image):
 
-```bash
-# Run with default seed
-python example_natural_image.py
+1. **2-Shapes Dataset** (`--dataset 2shapes`):
+   - Demonstrates segmentation of images with two non-overlapping shapes
+   - Includes three example images from the 2Shapes dataset
 
-# Run with custom seed
-python example_natural_image.py --seed 42
+2. **3-Shapes Dataset** (`--dataset 3shapes`):
+   - Demonstrates segmentation of images with three distinct shapes
+   - Includes three example images from the 3Shapes dataset
 
-# Run with dynamics visualization
-python example_natural_image.py --visualize_dynamics
+3. **Natural Image Dataset** (`--dataset natural_image`):
+   - Demonstrates segmentation of a natural image
+   - Note: `--image_index` is not available for this dataset
 
-# Run with ensemble of 5 models
-python example_natural_image.py --ensemble_size 5
+### Command Line Arguments
 
-# Run with background pixels excluded from accuracy
-python example_natural_image.py --exclude_background
+The unified script accepts the following arguments:
 
-# Combine multiple options
-python example_natural_image.py --ensemble_size 5 --exclude_background
-```
-
-## Command Line Arguments
-
-Each example script accepts the following arguments:
-
-- `--seed INT`: Specify a random seed for reproducibility (default values vary by example)
+- `--dataset`: Required. Choose from ["2shapes", "3shapes", "natural_image"]
+- `--seed INT`: Specify a random seed for reproducibility (default: 1)
 - `--visualize_dynamics`: Enable visualization of the CV-RNN dynamics (interactive plot)
 - `--ensemble_size INT`: Number of models to run in parallel (default: 1)
 - `--exclude_background`: Exclude background pixels when computing accuracy metrics
-- `--image_index INT`: Index of the image to use from the dataset (default: 0, not available for natural image example)
+- `--image_index INT`: Index of the image to use from the dataset (default: 0, not available for natural image)
 
 ## Outputs
 
-Each script produces several output files in the `output/` directory:
+The script produces several output files in the `output/{dataset}_img{image_index}_seed{seed}/` directory:
 
-1. Input image visualization
-2. 3D similarity projection plot
-3. Final segmentation result
-4. When using `--ensemble_size > 1`:
-   - Separate output files for each model in the ensemble
-   - Mean and standard deviation of segmentation accuracy across the ensemble
+1. Input image visualization (`input.png`)
+2. 3D similarity projection plot (`sim_{i}.png` for each model in ensemble)
+3. Final segmentation result (`seg_{i}.png` for each model in ensemble)
+
+When using `--ensemble_size > 1`:
+- Separate output files for each model in the ensemble
+- Mean and standard deviation of segmentation accuracy across the ensemble
 
 When using the `--visualize_dynamics` flag, an interactive animation showing the phase dynamics will be displayed.
 
