@@ -3,6 +3,7 @@ import jax
 jax.config.update("jax_enable_x64", True)
 
 import numpy as np
+from scipy.optimize import linear_sum_assignment
 import matplotlib
 import matplotlib.pyplot as plt
 from scipy.io import loadmat
@@ -153,21 +154,31 @@ def main(seed, image_index=0, visualize_dynamics=False, ensemble_size=1):
         plt.savefig(os.path.join(seed_specific_dir, f'segmented_model_{ii}.png'), bbox_inches='tight')
         plt.close()
 
-        # --- compute pixel-wise accuracy against ground truth ---
-        pred_flat = segmented.flatten()
-        # two possible mappings for {1,2} → {1,2}
-        # mapping A: identity   (0→0,1→1,2→2)
-        acc_A = np.mean(pred_flat == labels_flat)
-        # mapping B: swap 1↔2
-        swapped = pred_flat.copy()
-        # temporarily mark 1→-1, 2→1, -1→2
-        swapped[swapped == 1] = -1
-        swapped[swapped == 2] = 1
-        swapped[swapped == -1] = 2
-        acc_B = np.mean(swapped == labels_flat)
-        acc = max(acc_A, acc_B)
+        # --- compute pixel-wise accuracy via Hungarian matching ---
+        y_pred = segmented.flatten().astype(np.int32)
+        y_true = labels_flat.copy()
+        # restrict to non-background if requested
+        if args.exclude_background:
+            valid = (labels_flat!=0).astype(bool)  # True = valid
+            idxs = np.where(valid)[0]
+            y_pred = y_pred[idxs]
+            y_true = y_true[idxs]
+
+        # find unique labels in pred/true
+        pred_labels = np.unique(y_pred)
+        true_labels = np.unique(y_true)
+        # build the confusion matrix
+        M = np.zeros((pred_labels.size, true_labels.size), dtype=np.int32)
+        for i, p in enumerate(pred_labels):
+            for j, t in enumerate(true_labels):
+                M[i, j] = np.sum((y_pred == p) & (y_true == t))
+
+        # Hungarian to maximize trace(M)
+        row_ind, col_ind = linear_sum_assignment(M.max() - M)
+        total = M[row_ind, col_ind].sum()
+        acc = total / y_true.size
         accuracies.append(acc)
-        # print(f"  model {ii}:  acc={acc:.4f}  (A={acc_A:.4f}, B={acc_B:.4f})")
+        # print(f"  model {ii}:  acc={acc:.4f}")
     
     accuracies = jnp.array(accuracies)
     mean_acc = float(accuracies.mean())
@@ -179,6 +190,7 @@ if __name__=='__main__':
     parser.add_argument('--seed', type=int, default=1, help='random seed for run_2layer')
     parser.add_argument('--image_index', type=int, default=0, help='Index of the image to use from the dataset')
     parser.add_argument('--visualize_dynamics', action='store_true', help='whether to visualize the dynamics')
+    parser.add_argument('--exclude_background', action='store_true', help='only compute accuracy on non-background pixels')
     parser.add_argument('--ensemble_size', type=int, default=1, help='size of the model ensemble (number of models to run in parallel with vmap)')
     args = parser.parse_args()
     main(args.seed, args.image_index, args.visualize_dynamics, args.ensemble_size)
