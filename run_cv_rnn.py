@@ -110,8 +110,8 @@ def main(
         X = combined.T                                 # (N,nt2)
         x_full = jnp.angle(X).reshape(Nr,Nc,-1)
 
-        # optional dynamics plot
-        if visualize_dynamics:
+        # optional dynamics plot, and only do for one of the seeds in the ensemble
+        if visualize_dynamics and i == 0:
             plot_dynamics(x_full, nt1)
 
         # similarity projection
