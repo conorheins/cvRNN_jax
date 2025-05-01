@@ -1,3 +1,5 @@
+# cvrnn_layer.py 
+
 import equinox as eqx
 import jax, jax.numpy as jnp
 from typing import Optional, Sequence, Tuple

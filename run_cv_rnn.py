@@ -43,6 +43,7 @@ def main(
     ensemble_size: int,
     exclude_background: bool,
     visualize_dynamics: bool,
+    json_out: bool,
 ):
     # backend selection
     if not visualize_dynamics:
@@ -168,7 +169,18 @@ def main(
 
     # final summary
     accs = np.array(accs)
-    print(f"Ensemble of {ensemble_size}: mean acc = {accs.mean():.4f}, std = {accs.std():.4f}")
+    if json_out:
+        import json
+        # output minimal JSON for CI
+        print(json.dumps({
+            "dataset":     dataset,
+            "image_index": image_index,
+            "ensemble":    ensemble_size,
+            "mean_acc":    float(accs.mean()),
+            "std_acc":     float(accs.std()),
+        }))
+    else:
+        print(f"Ensemble of {ensemble_size}: mean acc = {accs.mean():.4f}, std = {accs.std():.4f}")
 
 if __name__=="__main__":
     p = argparse.ArgumentParser()
@@ -179,6 +191,7 @@ if __name__=="__main__":
     p.add_argument("--ensemble_size",    type=int,   default=1)
     p.add_argument("--exclude_background", action="store_true")
     p.add_argument("--visualize_dynamics", action="store_true")
+    p.add_argument("--json", action="store_true", help="print only JSON metrics (for CI)")
     args = p.parse_args()
 
     main(
@@ -188,4 +201,5 @@ if __name__=="__main__":
       ensemble_size     = args.ensemble_size,
       exclude_background= args.exclude_background,
       visualize_dynamics= args.visualize_dynamics,
+      json_out          = args.json,
     )
